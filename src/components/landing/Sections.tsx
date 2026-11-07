@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { PenLine, BarChart3, Scale, Settings } from "lucide-react";
 import { problems, responsible, benefits } from "@/content/landing";
-import { roleNeeds } from "@/mocks/users";
+import { roleNeeds } from "@/content/roles";
 import type { Role } from "@/types";
 import { SectionHeading, TiltCard } from "./shared";
 import { CountUp } from "./CountUp";

@@ -39,12 +39,21 @@ src/
 scripts/               axe + responsive audits
 ```
 
-### Mock data toggle
+### Backend (phase B1) and mock switches
 
-All data goes through `src/lib/api.ts`. Mocks are on by default.
-Set `NEXT_PUBLIC_USE_MOCKS=false` in `.env.local` once the real API routes exist, and implement the
-non-mock branches there. Never put secrets (e.g. the Claude API key) in client code; AI calls belong
-in server routes.
+Everything is free to run. The browser only uses `src/lib/api.ts`, which calls our own `/api/*` routes
+(`src/app/api`). Server code lives in `src/server` (pipeline, citation gate, rule checks, redaction,
+data store) and the only AI code is `src/lib/ai.ts`. See `docs/api-contract.md`.
+
+- `cp .env.example .env.local`. `AI_PROVIDER=mock` (or `MOCK_AI=true`) uses saved sample AI findings.
+  `AI_PROVIDER=gemini` + a free `GEMINI_API_KEY` (aistudio.google.com) uses `gemini-3.5-flash-lite` by default;
+  `AI_PROVIDER=ollama` uses a local model. Quota errors, outages, bad JSON and our own rate limit
+  (`RATE_LIMIT_PER_MINUTE`/`PER_DAY`) all fall back to sample AI findings with a visible notice.
+  Identical checks are cached for 24 h and don't use quota.
+- Without Supabase settings the server uses an in-memory demo store seeded with Zippy Apps
+  (resets when the server restarts). Supabase arrives in phase B3.
+- Demo sign-in: `/login` sets a role cookie; the server enforces permissions (only Reviewer/Admin approve,
+  only Admin changes roles, disputes need a reason).
 
 ### Metallic theme
 

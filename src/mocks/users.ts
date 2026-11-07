@@ -1,4 +1,4 @@
-﻿import type { Role, User } from "@/types";
+﻿import type { User } from "@/types";
 
 export const users: User[] = [
   { id: "u1", name: "Priya Nair", role: "Creator", team: "Social" },
@@ -10,9 +10,4 @@ export const users: User[] = [
   { id: "u5", name: "Mei Tanaka", role: "Admin", team: "Brand Ops" },
 ];
 
-export const roleNeeds: Record<Role, string> = {
-  Creator: "Submits content and wants fast feedback.",
-  "Brand manager": "Wants to see recurring errors.",
-  Reviewer: "Needs evidence and an audit trail.",
-  Admin: "Manages guidelines, versions and access.",
-};
+export { roleNeeds } from "@/content/roles";

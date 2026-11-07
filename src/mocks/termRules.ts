@@ -1,0 +1,55 @@
+import type { TermRule } from "@/types";
+
+/** Seed data for deterministic checks (Zippy Apps). Matching is case-insensitive. */
+export const termRules: TermRule[] = [
+  {
+    id: "t1",
+    ruleId: "FCT-1.1",
+    kind: "replace",
+    term: "$5/month",
+    replacement: "$9/month",
+    issue: "Outdated price",
+    severity: "Medium",
+    explanation: "The Pro plan has cost $9/month since January 2026.",
+  },
+  {
+    id: "t2",
+    ruleId: "FCT-1.3",
+    kind: "replace",
+    term: "Zippy Drive",
+    replacement: "Offline mode",
+    issue: "Retired feature",
+    severity: "Medium",
+    explanation: "Zippy Drive was retired in March 2026 and replaced by Offline mode.",
+  },
+  {
+    id: "t3",
+    ruleId: "CLM-3.4",
+    kind: "banned",
+    term: "guaranteed",
+    replacement: "",
+    issue: "Promised outcome",
+    severity: "High",
+    explanation: "“Guaranteed” is on the banned-terms list. We can't promise results.",
+  },
+  {
+    id: "t4",
+    ruleId: "CLM-3.4",
+    kind: "banned",
+    term: "risk-free",
+    replacement: "",
+    issue: "Promised outcome",
+    severity: "High",
+    explanation: "“Risk-free” promises an outcome we can't guarantee.",
+  },
+  {
+    id: "t5",
+    ruleId: "CLM-4.1",
+    kind: "banned",
+    term: "clinically proven",
+    replacement: "designed",
+    issue: "Scientific claim",
+    severity: "High",
+    explanation: "We don't make medical or scientific claims.",
+  },
+];

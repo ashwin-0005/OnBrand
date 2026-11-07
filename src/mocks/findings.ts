@@ -1,7 +1,6 @@
 import type { DroppedFinding, Finding } from "@/types";
 
-export const sampleDraft =
-  "Our app is the #1 fastest in the market. Guaranteed results in 7 days! Upgrade to Pro for only $5/month and keep your files in Zippy Drive. AMAZING VALUE!";
+export { sampleDraft } from "@/content/demo";
 
 export const findings: Finding[] = [
   {

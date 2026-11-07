@@ -1,11 +1,18 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { CheckCircle2, FileUp, PencilLine, ScanSearch, ShieldCheck } from "lucide-react";
-import { checkContent } from "@/lib/api";
-import { ruleById, rules } from "@/mocks/rules";
-import { sampleDraft } from "@/mocks/findings";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { AlertCircle, CheckCircle2, FileUp, Info, PencilLine, ScanSearch, ShieldCheck } from "lucide-react";
+import {
+  addComment,
+  approveSubmission,
+  checkContent,
+  getComments,
+  getHistory,
+  getRules,
+  saveDecision,
+} from "@/lib/api";
+import { MAX_DRAFT_CHARS, sampleDraft } from "@/content/demo";
 import { usePreferences } from "@/lib/preferences";
 import { ShieldMark } from "@/components/Logo";
 import { AiBadge } from "@/components/AiBadge";
@@ -20,13 +27,16 @@ import type { Comment, Decision, DroppedFinding, Finding, HistoryEvent, Rule, Se
 type Status = "idle" | "scanning" | "done";
 const TABS = ["Findings", "Comments", "History"] as const;
 type Tab = (typeof TABS)[number];
-const now = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-let seq = 0;
-const uid = () => `e${++seq}`;
+const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong. Please try again.");
 
 export function ReviewWorkspace() {
   const { role, reduceMotion } = usePreferences();
-  const who = role ?? "Guest";
+  const [rules, setRules] = useState<Rule[]>([]);
+  const ruleMap = useMemo(() => new Map(rules.map((r) => [r.id, r])), [rules]);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [text, setText] = useState(sampleDraft);
   const [status, setStatus] = useState<Status>("idle");
   const [findings, setFindings] = useState<Finding[]>([]);
@@ -36,14 +46,7 @@ export function ReviewWorkspace() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("Findings");
   const [history, setHistory] = useState<HistoryEvent[]>([]);
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: "c0",
-      at: "09:12",
-      who: "Lena (Brand manager)",
-      text: "Launch post for Friday. Please keep the price current.",
-    },
-  ]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [source, setSource] = useState<Rule | null>(null);
   const [disputing, setDisputing] = useState<Finding | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -52,7 +55,18 @@ export function ReviewWorkspace() {
   const [announce, setAnnounce] = useState("");
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  const log = (what: string, detail?: string) => setHistory((h) => [...h, { id: uid(), at: now(), who, what, detail }]);
+  // Rules come from the server: they draw source chips and must match the citation gate.
+  useEffect(() => {
+    getRules()
+      .then(setRules)
+      .catch((e) => setError(errMsg(e)));
+  }, []);
+
+  /** History is the server's audit trail; refresh it after every action. */
+  const refreshHistory = (sid: string) =>
+    getHistory(sid)
+      .then((h) => setHistory(h.map((e) => ({ ...e, at: time(e.at) }))))
+      .catch(() => {});
 
   // Reveal highlights one by one after a check.
   useEffect(() => {
@@ -64,17 +78,29 @@ export function ReviewWorkspace() {
   async function runCheck() {
     if (!text.trim()) return;
     setStatus("scanning");
+    setError(null);
+    setNotice(null);
     setAnnounce("Checking content against your guidelines…");
     setDecisions({});
     setRevealed(0);
     setApproved(false);
-    const res = await checkContent(text);
-    setFindings(res.findings);
-    setDropped(res.dropped);
-    setStatus("done");
-    setTab("Findings");
-    setAnnounce(`Review complete: ${res.findings.length} findings.`);
-    log("ran a check", `${res.findings.length} findings cited, ${res.dropped.length} dropped by the citation gate`);
+    setComments([]);
+    setHistory([]);
+    try {
+      const res = await checkContent(text);
+      setFindings(res.findings);
+      setDropped(res.dropped);
+      setSubmissionId(res.submissionId ?? null);
+      setNotice(res.notice ?? null);
+      setStatus("done");
+      setTab("Findings");
+      setAnnounce(`Review complete: ${res.findings.length} findings.`);
+      if (res.submissionId) refreshHistory(res.submissionId);
+    } catch (e) {
+      setStatus("idle");
+      setError(errMsg(e));
+      setAnnounce(`Check failed: ${errMsg(e)}`);
+    }
   }
 
   function editDraft() {
@@ -83,19 +109,55 @@ export function ReviewWorkspace() {
     setFindings([]);
     setDropped([]);
     setDecisions({});
+    setSubmissionId(null);
+    setNotice(null);
   }
 
-  const decide = (f: Finding, d: Decision, what: string) => {
-    setDecisions((all) => ({ ...all, [f.id]: d }));
-    log(what, d.reason ?? d.fix);
-    setAnnounce(`${f.issue}: ${what}.`);
-    setTimeout(() => document.getElementById(`finding-${f.id}`)?.focus(), 50);
+  /** Saved on the server first (it enforces dispute reasons), then shown. */
+  const decide = async (f: Finding, d: Decision, what: string) => {
+    if (!submissionId) return;
+    setError(null);
+    try {
+      const saved = await saveDecision(submissionId, f.id, d);
+      setDecisions((all) => ({ ...all, [f.id]: saved }));
+      setAnnounce(`${f.issue}: ${what}.`);
+      refreshHistory(submissionId);
+      setTimeout(() => document.getElementById(`finding-${f.id}`)?.focus(), 50);
+    } catch (e) {
+      setError(errMsg(e));
+    }
   };
+
+  async function approveDraft() {
+    setConfirming(false);
+    if (!submissionId) return;
+    setError(null);
+    try {
+      await approveSubmission(submissionId);
+      setApproved(true);
+      setAnnounce("Draft approved.");
+      refreshHistory(submissionId);
+    } catch (e) {
+      setError(errMsg(e));
+    }
+  }
+
+  async function postComment(t: string) {
+    if (!submissionId) return;
+    setError(null);
+    try {
+      await addComment(submissionId, t);
+      setComments((await getComments(submissionId)).map((c) => ({ ...c, at: time(c.at) })));
+      refreshHistory(submissionId);
+    } catch (e) {
+      setError(errMsg(e));
+    }
+  }
 
   const openCount = findings.filter((f) => !decisions[f.id] || decisions[f.id].state === "open").length;
   const bySeverity = (s: Severity) => findings.filter((f) => f.severity === s).length;
   const cited = findings.length
-    ? Math.round((findings.filter((f) => ruleById(f.rule_id)).length / findings.length) * 100)
+    ? Math.round((findings.filter((f) => ruleMap.has(f.rule_id)).length / findings.length) * 100)
     : 100;
   const canApprove = role === "Reviewer" || role === "Admin";
 
@@ -122,6 +184,23 @@ export function ReviewWorkspace() {
       <p className="sr-only" aria-live="polite" role="status">
         {announce}
       </p>
+
+      {error && (
+        <p
+          role="alert"
+          className="mt-6 flex items-start gap-2 rounded-2xl bg-draft-pink px-5 py-3 text-sm font-semibold text-ink"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-coral-text" aria-hidden="true" /> {error}
+        </p>
+      )}
+      {notice && status === "done" && (
+        <p
+          role="status"
+          className="mt-6 flex items-start gap-2 rounded-2xl bg-yellow/25 px-5 py-3 text-sm font-semibold text-ink"
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> {notice}
+        </p>
+      )}
 
       {/* Summary bar */}
       {status === "done" && (
@@ -160,8 +239,16 @@ export function ReviewWorkspace() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 rows={8}
+                maxLength={MAX_DRAFT_CHARS}
+                aria-describedby="draft-count"
                 className="mt-3 w-full rounded-2xl bg-card-light p-4 text-lg leading-relaxed ring-1 ring-ink/10"
               />
+              <p
+                id="draft-count"
+                className={`mt-1 text-right text-xs ${text.length >= MAX_DRAFT_CHARS ? "font-semibold text-coral-text" : "text-muted"}`}
+              >
+                {text.length} / {MAX_DRAFT_CHARS} characters (free plan limit)
+              </p>
               <label
                 className="mt-4 flex min-h-[88px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-ink/20 p-4 text-center text-sm text-muted hover:border-ink/40"
                 onDragOver={(e) => e.preventDefault()}
@@ -172,7 +259,7 @@ export function ReviewWorkspace() {
               >
                 <FileUp className="h-6 w-6" aria-hidden="true" />
                 <span className="mt-1 font-semibold text-ink">{fileName ?? "Upload an image or PDF"}</span>
-                <span>Drag and drop, or click to choose. (Preview only: file checks arrive with the backend.)</span>
+                <span>Drag and drop, or click to choose. (Preview only: file checks are not available yet.)</span>
                 <input
                   type="file"
                   accept="image/*,.pdf"
@@ -277,9 +364,7 @@ export function ReviewWorkspace() {
                       <ShieldMark className="h-14 w-14" />
                     </motion.span>
                     <p className="mt-4 font-semibold">Scanning…</p>
-                    <p className="text-sm text-muted">
-                      Rule checks first, then retrieval and AI, then the citation gate.
-                    </p>
+                    <p className="text-sm text-muted">Rule checks first, then AI, then the citation gate.</p>
                   </div>
                 )}
                 {status === "done" && (
@@ -293,7 +378,7 @@ export function ReviewWorkspace() {
                     )}
                     <AnimatePresence>
                       {findings.map((f, i) => {
-                        const rule = ruleById(f.rule_id);
+                        const rule = ruleMap.get(f.rule_id);
                         if (!rule) return null;
                         return (
                           <FindingCard
@@ -343,15 +428,16 @@ export function ReviewWorkspace() {
                 )}
               </>
             )}
-            {tab === "Comments" && (
-              <CommentThread
-                comments={comments}
-                onAdd={(t) => {
-                  setComments((c) => [...c, { id: uid(), at: now(), who, text: t }]);
-                  log("commented", t);
-                }}
-              />
-            )}
+            {tab === "Comments" &&
+              (submissionId ? (
+                <CommentThread comments={comments} onAdd={postComment} />
+              ) : (
+                <EmptyState
+                  icon={ScanSearch}
+                  title="No review yet"
+                  body="Run a check first. Comments are saved with each review."
+                />
+              ))}
             {tab === "History" && <HistoryTimeline events={history} />}
           </div>
         </section>
@@ -367,12 +453,7 @@ export function ReviewWorkspace() {
         open={confirming}
         openCount={openCount}
         onClose={() => setConfirming(false)}
-        onConfirm={() => {
-          setConfirming(false);
-          setApproved(true);
-          log("approved the draft");
-          setAnnounce("Draft approved.");
-        }}
+        onConfirm={approveDraft}
       />
     </div>
   );

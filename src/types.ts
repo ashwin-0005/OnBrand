@@ -36,6 +36,82 @@ export interface DroppedFinding {
 export interface ReviewResult {
   findings: Finding[];
   dropped: DroppedFinding[];
+  /** Added by the backend (optional, so the original shape still holds). */
+  submissionId?: string;
+  /** Visible notice, e.g. when the free AI quota ran out and sample AI findings were used. */
+  notice?: string;
+}
+
+export interface RuleVersion {
+  ruleId: string;
+  version: number;
+  note: string;
+  createdAt: string;
+}
+
+export interface Fact {
+  id: string;
+  label: string;
+  value: string;
+  validFrom: string;
+  source: string;
+}
+
+/** Data-driven deterministic check. "banned" removes/replaces a term; "replace" swaps an outdated value. */
+export interface TermRule {
+  id: string;
+  ruleId: string;
+  kind: "banned" | "replace";
+  term: string;
+  replacement: string;
+  issue: string;
+  severity: Severity;
+  explanation: string;
+}
+
+export type RevisionAction = "checked" | "accepted" | "edited" | "disputed" | "commented" | "approved";
+
+export interface Submission {
+  id: string;
+  workspaceId: string;
+  authorId: string;
+  text: string;
+  status: "checked" | "approved";
+  createdAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+}
+
+export interface Revision {
+  id: string;
+  submissionId: string;
+  actorId: string;
+  action: RevisionAction;
+  findingId?: string;
+  detail?: string;
+  at: string;
+}
+
+export interface InsightStats {
+  findingsThisMonth: number;
+  acceptedPct: number;
+  disputedPct: number;
+  avgReviewMinutes: number;
+  repeatErrorPct: number;
+}
+
+export interface InsightRecord {
+  ruleId: string;
+  team: string;
+  creator: string;
+  month: string;
+  count: number;
+  disputed: number;
+}
+
+export interface Session {
+  user: User;
+  workspaceId: string;
 }
 
 export type DecisionState = "open" | "accepted" | "edited" | "disputed";

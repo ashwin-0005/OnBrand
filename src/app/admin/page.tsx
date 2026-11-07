@@ -1,13 +1,11 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FileUp, History } from "lucide-react";
-import { rules } from "@/mocks/rules";
-import { facts, bannedTerms, versionNotes } from "@/mocks/facts";
-import { users as initialUsers } from "@/mocks/users";
-import { roleNeeds } from "@/mocks/users";
+import { getBannedTerms, getFacts, getRuleVersions, getRules, listUsers, setUserRole } from "@/lib/api";
+import { roleNeeds } from "@/content/roles";
 import { Modal } from "@/components/review/Dialogs";
-import type { Role, Rule, User } from "@/types";
+import type { Fact, Role, Rule, RuleVersion, User } from "@/types";
 
 const card = "rounded-[var(--radius-card)] bg-white p-6 shadow-sm";
 const roles = Object.keys(roleNeeds) as Role[];
@@ -15,8 +13,44 @@ const roles = Object.keys(roleNeeds) as Role[];
 export default function AdminPage() {
   const [historyFor, setHistoryFor] = useState<Rule | null>(null);
   const [files, setFiles] = useState<string[]>([]);
-  const [people, setPeople] = useState<User[]>(initialUsers);
+  const [people, setPeople] = useState<User[]>([]);
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [facts, setFacts] = useState<Fact[]>([]);
+  const [bannedTerms, setBannedTerms] = useState<string[]>([]);
+  const [versions, setVersions] = useState<RuleVersion[] | null>(null);
   const [saved, setSaved] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    Promise.all([getRules(), getFacts(), getBannedTerms(), listUsers()])
+      .then(([r, f, t, u]) => {
+        setRules(r);
+        setFacts(f);
+        setBannedTerms(t);
+        setPeople(u);
+      })
+      .catch((e: Error) => setError(e.message));
+  }, []);
+
+  const openHistory = (r: Rule) => {
+    setHistoryFor(r);
+    setVersions(null);
+    getRuleVersions(r.id)
+      .then(setVersions)
+      .catch((e: Error) => setError(e.message));
+  };
+
+  const changeRole = async (p: User, role: Role) => {
+    setSaved("");
+    setError("");
+    try {
+      const u = await setUserRole(p.id, role);
+      setPeople((all) => all.map((x) => (x.id === u.id ? u : x)));
+      setSaved(`${u.name} is now ${u.role}. Change logged.`);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6">
@@ -57,7 +91,7 @@ export default function AdminPage() {
                   <td>
                     <button
                       type="button"
-                      onClick={() => setHistoryFor(r)}
+                      onClick={() => openHistory(r)}
                       className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-3 font-semibold ring-1 ring-ink/20 hover:bg-card-light"
                     >
                       <History className="h-4 w-4" aria-hidden="true" /> History
@@ -162,11 +196,7 @@ export default function AdminPage() {
                       id={`role-${p.id}`}
                       value={p.role}
                       className="min-h-[40px] rounded-xl bg-card-light px-3"
-                      onChange={(e) => {
-                        const role = e.target.value as Role;
-                        setPeople((all) => all.map((x) => (x.id === p.id ? { ...x, role } : x)));
-                        setSaved(`${p.name} is now ${role}. Change logged (demo).`);
-                      }}
+                      onChange={(e) => changeRole(p, e.target.value as Role)}
                     >
                       {roles.map((r) => (
                         <option key={r}>{r}</option>
@@ -181,6 +211,9 @@ export default function AdminPage() {
         <p role="status" className="mt-3 text-sm text-green-text">
           {saved}
         </p>
+        <p role="alert" className="mt-1 text-sm font-semibold text-coral-text">
+          {error}
+        </p>
       </section>
 
       <Modal
@@ -189,17 +222,16 @@ export default function AdminPage() {
         title={historyFor ? `${historyFor.title} history` : ""}
         side
       >
-        {historyFor && (
+        {historyFor && !versions && <p className="mt-5 text-muted">Loading versions…</p>}
+        {historyFor && versions && (
           <ol className="mt-5 space-y-3">
-            {Array.from({ length: historyFor.version }, (_, i) => historyFor.version - i).map((v, i) => (
-              <li key={v} className={`rounded-2xl p-4 text-sm ${i === 0 ? "bg-fix-green" : "bg-card-light"}`}>
+            {versions.map((v, i) => (
+              <li key={v.version} className={`rounded-2xl p-4 text-sm ${i === 0 ? "bg-fix-green" : "bg-card-light"}`}>
                 <p className="font-semibold">
-                  Version {v}
+                  Version {v.version}
                   {i === 0 && " · current"}
                 </p>
-                <p className="text-muted">
-                  {versionNotes[historyFor.id]?.[i] ?? (v === 1 ? "First version" : "Wording clarified")}
-                </p>
+                <p className="text-muted">{v.note}</p>
               </li>
             ))}
           </ol>

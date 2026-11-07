@@ -1,14 +1,43 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarChart3, Table2 } from "lucide-react";
 import { StatCard, RuleBarChart, RuleTable, Heatmap, type RuleRow } from "@/components/insights/Charts";
-import { records, stats, teams, creatorByTeam } from "@/mocks/insights";
-import { rules } from "@/mocks/rules";
+import { getInsights, getRules, type InsightsResponse } from "@/lib/api";
+import type { Rule } from "@/types";
 
 const select = "min-h-[44px] w-full rounded-xl bg-white px-3 ring-1 ring-ink/15";
 
 export default function InsightsPage() {
+  const [data, setData] = useState<{ insights: InsightsResponse; rules: Rule[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    Promise.all([getInsights(), getRules()])
+      .then(([insights, rules]) => setData({ insights, rules }))
+      .catch((e: Error) => setError(e.message));
+  }, []);
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <h1 className="font-serif text-4xl font-bold">Insights</h1>
+      <p className="mt-2 text-muted">Which rules keep failing, where, and which ones may be unclear. Synthetic data.</p>
+      {error && (
+        <p role="alert" className="mt-6 rounded-2xl bg-draft-pink px-5 py-3 font-semibold">
+          {error}
+        </p>
+      )}
+      {!data && !error && (
+        <p role="status" className="mt-8 text-muted">
+          Loading insights?
+        </p>
+      )}
+      {data && <InsightsView {...data} />}
+    </div>
+  );
+}
+
+function InsightsView({ insights, rules }: { insights: InsightsResponse; rules: Rule[] }) {
+  const { records, stats, teams, creators } = insights;
+  const title = (id: string) => rules.find((r) => r.id === id)?.title;
   const [rule, setRule] = useState("all");
   const [team, setTeam] = useState("all");
   const [creator, setCreator] = useState("all");
@@ -26,7 +55,7 @@ export default function InsightsPage() {
           r.month >= from &&
           r.month <= to,
       ),
-    [rule, team, creator, from, to],
+    [records, rule, team, creator, from, to],
   );
 
   const byRule: RuleRow[] = useMemo(() => {
@@ -38,11 +67,13 @@ export default function InsightsPage() {
     return [...m.entries()]
       .map(([ruleId, v]) => ({
         ruleId,
+        title: title(ruleId),
         count: v.count,
         disputedPct: v.count ? Math.round((v.disputed / v.count) * 100) : 0,
       }))
       .sort((a, b) => b.count - a.count);
-  }, [rows]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, rules]);
 
   const ruleIds = rule === "all" ? rules.map((r) => r.id) : [rule];
   const shownTeams = team === "all" ? teams : teams.filter((t) => t === team);
@@ -50,10 +81,7 @@ export default function InsightsPage() {
     rows.filter((x) => x.team === t && x.ruleId === r).reduce((s, x) => s + x.count, 0);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <h1 className="font-serif text-4xl font-bold">Insights</h1>
-      <p className="mt-2 text-muted">Which rules keep failing, where, and which ones may be unclear. Synthetic data.</p>
-
+    <>
       <section aria-label="Key numbers" className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Findings this month" value={stats.findingsThisMonth} />
         <StatCard label="Accepted" value={stats.acceptedPct} suffix="%" />
@@ -96,7 +124,7 @@ export default function InsightsPage() {
           Creator
           <select className={select} value={creator} onChange={(e) => setCreator(e.target.value)}>
             <option value="all">All creators</option>
-            {Object.values(creatorByTeam).map((c) => (
+            {creators.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
@@ -169,6 +197,6 @@ export default function InsightsPage() {
           <Heatmap teams={shownTeams} ruleIds={ruleIds} value={cell} />
         </div>
       </section>
-    </div>
+    </>
   );
 }

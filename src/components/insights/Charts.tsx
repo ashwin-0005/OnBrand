@@ -4,8 +4,8 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { AlertTriangle, Wand2 } from "lucide-react";
 import { CountUp } from "@/components/landing/CountUp";
-import { ruleById } from "@/mocks/rules";
-import { AMBIGUOUS_DISPUTE_PCT } from "@/mocks/insights";
+/** A rule is "possibly ambiguous" when more than this % of its findings are disputed. */
+export const AMBIGUOUS_DISPUTE_PCT = 25;
 
 export function StatCard({
   label,
@@ -33,6 +33,7 @@ export interface RuleRow {
   ruleId: string;
   count: number;
   disputedPct: number;
+  title?: string;
 }
 
 /** Bar chart as a real list (screen readers read each row); bars are decorative. Table toggle lives in the page. */
@@ -43,7 +44,7 @@ export function RuleBarChart({ rows }: { rows: RuleRow[] }) {
     <>
       <ul className="space-y-3">
         {rows.map((r, i) => {
-          const rule = ruleById(r.ruleId);
+          const rule = { title: r.title };
           const ambiguous = r.disputedPct > AMBIGUOUS_DISPUTE_PCT;
           return (
             <li key={r.ruleId} className="grid gap-x-4 gap-y-1 sm:grid-cols-[11rem_1fr]">
@@ -111,7 +112,7 @@ export function RuleTable({ rows }: { rows: RuleRow[] }) {
         {rows.map((r) => (
           <tr key={r.ruleId} className="border-t border-ink/10">
             <th scope="row" className="py-2 font-normal">
-              <span className="font-mono font-semibold">{r.ruleId}</span> {ruleById(r.ruleId)?.title}
+              <span className="font-mono font-semibold">{r.ruleId}</span> {r.title}
             </th>
             <td>{r.count}</td>
             <td>{r.disputedPct}%</td>

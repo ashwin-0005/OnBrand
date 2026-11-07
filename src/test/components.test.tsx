@@ -1,11 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { FindingCard } from "@/components/review/FindingCard";
 import { DisputeModal } from "@/components/review/Dialogs";
 import { HeroScene } from "@/components/landing/HeroScene";
 import { findings } from "@/mocks/findings";
 import { ruleById } from "@/mocks/rules";
-import { checkContent } from "@/lib/api";
 import { applyDecisions } from "@/components/review/HighlightedText";
 
 vi.mock("next/dynamic", () => ({ default: () => () => <canvas data-testid="webgl" /> }));
@@ -77,18 +76,7 @@ describe("Reduced motion", () => {
   });
 });
 
-describe("Mock pipeline", () => {
-  it("only returns findings whose rule_id exists (citation gate) and reports dropped ones", async () => {
-    vi.useFakeTimers();
-    const p = checkContent("Guaranteed results in 7 days! Zippy Drive");
-    await act(async () => vi.runAllTimersAsync());
-    const res = await p;
-    vi.useRealTimers();
-    expect(res.findings.map((x) => x.rule_id)).toEqual(["CLM-3.4", "FCT-1.3"]);
-    expect(res.findings.every((x) => ruleById(x.rule_id))).toBe(true);
-    expect(res.dropped.every((d) => d.reason === "no source found")).toBe(true);
-  });
-
+describe("Fix application", () => {
   it("applies accepted fixes only where a human decided", () => {
     const text = "Upgrade for only $5/month in Zippy Drive.";
     const out = applyDecisions(text, findings, { f3: { state: "accepted", fix: "$9/month" } });
