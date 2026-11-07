@@ -1,26 +1,137 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --navy-900: #08090c;
+  --navy-700: #1a1d24;
+  --indigo-600: #3d4a63;
+  --ink: #16181d;
+  --muted: #555b66;
+  --card-light: #eceef2;
+  --coral: #e07a5f;
+  --green: #3cc29a;
+  --yellow: #d9b25f;
+  --draft-pink: #f6e4df;
+  --fix-green: #def3ea;
+  /* AA-safe text shades for use on light backgrounds (base accents fail 4.5:1 on white) */
+  --coral-text: #a8442c;
+  --green-text: #1a7357;
+  --yellow-text: #7a5a10;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-navy-900: var(--navy-900);
+  --color-navy-700: var(--navy-700);
+  --color-indigo-600: var(--indigo-600);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-card-light: var(--card-light);
+  --color-coral: var(--coral);
+  --color-green: var(--green);
+  --color-yellow: var(--yellow);
+  --color-draft-pink: var(--draft-pink);
+  --color-fix-green: var(--fix-green);
+  --color-coral-text: var(--coral-text);
+  --color-green-text: var(--green-text);
+  --color-yellow-text: var(--yellow-text);
+  --font-serif: var(--font-fraunces);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+  --radius-card: 20px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #f6f7f9;
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+/*
+ * Metallic theme. Token names are role names kept from v1:
+ * navy-* = gunmetal, indigo-600 = steel, coral = copper (risk), green = emerald (verified), yellow = gold.
+ */
+.bg-brand-gradient {
+  background: linear-gradient(120deg, #08090c 0%, #14171d 45%, #232833 75%, #2d3340 100%);
+}
+
+/* Chrome / gold text. Solid colour first as a fallback; gradient sweeps when --sheen moves. */
+.text-chrome,
+.text-gold {
+  color: #e8ebf0;
+  background-size: 250% 100%;
+  background-position: var(--sheen, 100%) 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.text-chrome {
+  background-image: linear-gradient(
+    100deg,
+    #8f97a3 0%,
+    #f4f6f9 18%,
+    #a9b0bb 32%,
+    #ffffff 46%,
+    #8f97a3 60%,
+    #dfe3e9 80%,
+    #9aa2ad 100%
+  );
+}
+.text-gold {
+  color: #d9b25f;
+  background-image: linear-gradient(
+    100deg,
+    #9c7a2e 0%,
+    #f6e3a1 22%,
+    #c99a3b 40%,
+    #fff1c4 52%,
+    #a8812f 70%,
+    #e8c874 100%
+  );
+}
+
+/* Brushed-metal gold button (dark text: 8:1+). */
+.btn-gold {
+  color: #0b0c0f;
+  background: linear-gradient(135deg, #f6e3a1 0%, #d9b25f 35%, #b8913e 60%, #f1d68a 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 10px 30px -10px rgba(217, 178, 95, 0.6);
+}
+.btn-gold:hover {
+  filter: brightness(1.08);
+}
+
+/* Metal plate card on dark backgrounds. */
+.metal-card {
+  background: linear-gradient(160deg, #f4f5f8 0%, #dfe3e9 55%, #c9ced6 100%);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 24px 60px -24px rgba(0, 0, 0, 0.8);
+}
+
+/* Decorative text drawn via CSS content: skipped by screen readers and contrast tools. */
+.deco-text::before {
+  content: attr(data-text);
+}
+
+.text-outline-metal {
+  color: #e8ebf0; /* measurable colour for contrast tools; fill is transparent */
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1.5px rgba(232, 235, 240, 0.35);
+}
+
+:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Manual "Reduce motion" toggle and OS setting both kill CSS motion */
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+/* Motion follows only the navbar "Reduce motion" toggle (see src/lib/preferences.tsx), not the OS setting. */

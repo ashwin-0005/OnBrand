@@ -1,69 +1,77 @@
-import Image from "next/image";
+﻿import Link from "next/link";
+import { HeroScene } from "@/components/landing/HeroScene";
+import { heroDrafts } from "@/mocks/drafts";
+import { SmoothScroll } from "@/components/landing/SmoothScroll";
+import { ScrollStory } from "@/components/landing/ScrollStory";
+import { CitationGateScene } from "@/components/landing/CitationGateScene";
+import { BeforeAfterDemo } from "@/components/landing/BeforeAfterDemo";
+import { ProblemSection, RoleCards, ResponsibleCards, BenefitTiles } from "@/components/landing/Sections";
+import { MetalBackground } from "@/components/landing/MetalBackground";
+import { ScrollFX, MetalMarquee } from "@/components/landing/ScrollFX";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="relative isolate bg-navy-900 text-white">
+      <MetalBackground />
+      <SmoothScroll />
+      <ScrollFX />
+      <div className="relative z-10">
+        <section aria-labelledby="hero-title" className="relative overflow-hidden">
+          <div className="mx-auto grid min-h-screen max-w-7xl items-center gap-8 px-4 pb-12 pt-28 sm:px-6 lg:grid-cols-2 lg:pb-0">
+            <div data-hero-copy className="relative z-10">
+              <p className="text-gold mb-5 text-sm font-semibold uppercase tracking-[0.3em]">
+                Brand safety, before publish
+              </p>
+              <h1
+                id="hero-title"
+                data-sheen
+                className="text-chrome font-serif text-5xl font-bold leading-[1.05] sm:text-6xl xl:text-7xl"
+              >
+                Catch brand risk before content goes live.
+              </h1>
+              <p className="mt-6 text-xl text-white/85">Explain every finding. Keep humans in control.</p>
+              <div className="mt-10 flex flex-wrap gap-4">
+                <Link
+                  href="/review"
+                  className="btn-gold inline-flex min-h-[48px] items-center rounded-full px-7 font-semibold transition-transform hover:-translate-y-0.5"
+                >
+                  Try a review
+                </Link>
+                <a
+                  href="#how"
+                  className="inline-flex min-h-[48px] items-center rounded-full px-7 font-semibold ring-1 ring-white/40 backdrop-blur-sm hover:bg-white/10"
+                >
+                  See how it works
+                </a>
+              </div>
+              {/* The 3D scene is decorative; its idea exists here as real text. */}
+              <div className="sr-only">
+                <p>Examples of risky drafts OnBrand flags before they go live:</p>
+                <ul>
+                  {heroDrafts.map((d) => (
+                    <li key={d.text}>
+                      {d.text} ({d.tag})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="relative h-[380px] sm:h-[460px] lg:h-[640px]">
+              <HeroScene />
+            </div>
+          </div>
+        </section>
+        <MetalMarquee words={["Outdated facts", "Unsupported claims", "Voice drift", "Off-brand visuals"]} />
+        <ProblemSection />
+        <ScrollStory />
+        <MetalMarquee words={["Deterministic first", "AI second", "Every finding cited"]} direction="right" />
+        <CitationGateScene />
+        <BeforeAfterDemo />
+        <RoleCards />
+        <MetalMarquee words={["Suggestions only", "Humans decide", "Fully audited"]} />
+        <ResponsibleCards />
+        <BenefitTiles />
+      </div>
     </div>
   );
 }
