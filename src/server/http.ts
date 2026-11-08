@@ -15,7 +15,8 @@ export class HttpError extends Error {
 /** Wraps a route handler: HttpError -> JSON {error}; anything else -> 500 without leaking details. */
 export async function handle(fn: () => Promise<unknown>): Promise<Response> {
   try {
-    return Response.json(await fn());
+    const out = await fn();
+    return out instanceof Response ? out : Response.json(out); // a handler may return its own Response (e.g. with cookies)
   } catch (e) {
     // Let Next.js's own control-flow signals (e.g. "this route is dynamic") pass through untouched.
     unstable_rethrow(e);

@@ -43,6 +43,11 @@ async function call<T>(path: string, init?: RequestInit & { json?: unknown }): P
     throw new ApiError(0, "Can't reach the server. Check your connection and try again.");
   }
   const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (res.status === 401 && typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+    // Not signed in (Supabase mode): hard redirect to pick a demo account. Not a React render, so no router here.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = "/login";
+  }
   if (!res.ok) throw new ApiError(res.status, data.error ?? `Request failed (${res.status}).`);
   return data as T;
 }

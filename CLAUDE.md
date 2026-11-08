@@ -41,4 +41,5 @@ Vercel Hobby. AI: Gemini free tier | Ollama (local) | mock, chosen by AI_PROVIDE
 - Small phases, stop for review after each. Explain in simple language.
 - Tests for rule checks and citation gate. Synthetic brand data only
   (see docs/sample-brand.md).
-- Frontend: all backend calls go through src/lib/api.ts (mocked for now).
+- Frontend: all backend calls go through src/lib/api.ts (calls /api/*).
+- Data: in-memory demo store, or Supabase (RLS enforces workspace isolation and roles; see docs/supabase-setup.md).

@@ -1,6 +1,8 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import type { Finding, ReviewResult, Rule, Session } from "@/types";
+import type { Finding, ReviewResult, Rule } from "@/types";
+import type { ServerSession } from "./mode";
+import type { Repo } from "./repo";
 import { getRepo } from "./repo";
 import { runDeterministicChecks } from "./checks";
 import { redact } from "./redact";
@@ -24,13 +26,13 @@ const limits = () => ({
 });
 
 /** Same redacted draft + same rule versions + same model => same AI answer. */
-export function cacheKey(redactedDraft: string, rules: Rule[], provider: AiProvider): string {
+export function cacheKey(workspaceId: string, redactedDraft: string, rules: Rule[], provider: AiProvider): string {
   const ruleSig = rules
     .map((r) => `${r.id}@${r.version}`)
     .sort()
     .join(",");
   return createHash("sha256")
-    .update(`${provider}:${modelFor(provider)}\n${ruleSig}\n${redactedDraft.trim()}`)
+    .update(`${workspaceId}\n${provider}:${modelFor(provider)}\n${ruleSig}\n${redactedDraft.trim()}`)
     .digest("hex");
 }
 
@@ -40,16 +42,17 @@ export function cacheKey(redactedDraft: string, rules: Rule[], provider: AiProvi
  * Only successful real answers are cached, and cache hits cost no quota.
  */
 async function aiStep(
-  userId: string,
+  repo: Repo,
+  session: ServerSession,
   redacted: string,
   rules: Rule[],
 ): Promise<{ findings: Finding[]; notice?: string }> {
-  const repo = getRepo();
+  const userId = session.user.id;
   const provider = getAiProvider();
   const samples = () => reviewDraft(redacted, rules, "mock");
   if (provider === "mock") return { findings: await samples(), notice: NOTICES.mock };
 
-  const key = cacheKey(redacted, rules, provider);
+  const key = cacheKey(session.workspaceId, redacted, rules, provider);
   const cached = await repo.getCachedAi(key);
   if (cached) return { findings: cached.map((f) => ({ ...f, id: crypto.randomUUID() })) };
 
@@ -77,8 +80,8 @@ async function aiStep(
  * rule checks -> redact -> AI (cache / rate limit / mock fallback + notice) -> phrase check -> de-dupe
  * -> citation gate -> save.
  */
-export async function runReview(session: Session, text: string): Promise<ReviewResult> {
-  const repo = getRepo();
+export async function runReview(session: ServerSession, text: string): Promise<ReviewResult> {
+  const repo = getRepo(session);
   const ws = session.workspaceId;
   const [rules, termRules] = await Promise.all([repo.getRules(ws), repo.getTermRules(ws)]);
 
@@ -86,7 +89,7 @@ export async function runReview(session: Session, text: string): Promise<ReviewR
   const deterministic = runDeterministicChecks(text, termRules);
 
   // 2. AI second, on redacted text.
-  const { findings: ai, notice } = await aiStep(session.user.id, redact(text), rules);
+  const { findings: ai, notice } = await aiStep(repo, session, redact(text), rules);
 
   // 3. Phrases must exist in the original draft (the UI highlights by exact search).
   const located = ai.flatMap((f) => {

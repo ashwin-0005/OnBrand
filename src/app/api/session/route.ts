@@ -1,31 +1,28 @@
-import { HttpError, handle, parseBody } from "@/server/http";
-import { getSession, roleCookie } from "@/server/auth";
+import { handle, parseBody } from "@/server/http";
+import { clearCookies, getSession, signInDemo } from "@/server/auth";
 import { SessionBody } from "@/server/schemas";
-import { getRepo } from "@/server/repo";
-import { DEMO_WORKSPACE } from "@/server/memoryRepo";
 
-/** Current user (demo: defaults to a Creator). */
+/** Current user. Never includes the access token. */
 export async function GET(req: Request) {
-  return handle(async () => getSession(req));
+  return handle(async () => {
+    const { user, workspaceId } = await getSession(req);
+    return { user, workspaceId };
+  });
 }
 
-/** Demo sign-in by role (phase B1). Phase B3 replaces this with Supabase Auth. */
+/** Demo sign-in by role (real Supabase Auth session when Supabase is configured). */
 export async function POST(req: Request) {
-  const res = await handle(async () => {
+  return handle(async () => {
     const { role } = await parseBody(req, SessionBody);
-    const user = await getRepo().getUserByRole(DEMO_WORKSPACE, role);
-    if (!user) throw new HttpError(400, "Nobody has that role right now. Ask an Admin.");
-    return { user, workspaceId: DEMO_WORKSPACE };
+    const { session, cookies } = await signInDemo(role);
+    const res = Response.json(session);
+    cookies.forEach((c) => res.headers.append("Set-Cookie", c));
+    return res;
   });
-  if (res.ok) {
-    const { user } = (await res.clone().json()) as { user: { role: Parameters<typeof roleCookie>[0] } };
-    res.headers.append("Set-Cookie", roleCookie(user.role));
-  }
-  return res;
 }
 
 export async function DELETE() {
   const res = Response.json({ ok: true });
-  res.headers.append("Set-Cookie", roleCookie(null));
+  clearCookies().forEach((c) => res.headers.append("Set-Cookie", c));
   return res;
 }

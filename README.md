@@ -51,7 +51,9 @@ data store) and the only AI code is `src/lib/ai.ts`. See `docs/api-contract.md`.
   (`RATE_LIMIT_PER_MINUTE`/`PER_DAY`) all fall back to sample AI findings with a visible notice.
   Identical checks are cached for 24 h and don't use quota.
 - Without Supabase settings the server uses an in-memory demo store seeded with Zippy Apps
-  (resets when the server restarts). Supabase arrives in phase B3.
+  (resets when the server restarts). With `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` it uses
+  your free Supabase project (Postgres + Auth + row-level security): see `docs/supabase-setup.md`,
+  `supabase/migrations/0001_init.sql`, `supabase/seed.sql`, `npm run seed:users`, `npm run verify:supabase`.
 - Demo sign-in: `/login` sets a role cookie; the server enforces permissions (only Reviewer/Admin approve,
   only Admin changes roles, disputes need a reason).
 

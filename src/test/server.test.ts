@@ -185,3 +185,36 @@ describe("Human decisions (server-enforced)", () => {
     await expect(approve(await session("Reviewer"), res.submissionId!)).resolves.toMatchObject({ approved: true });
   });
 });
+
+describe("Supabase mode (no network: only the guard rails)", () => {
+  const keep = { url: process.env.NEXT_PUBLIC_SUPABASE_URL, key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY };
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "http://127.0.0.1:1";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon";
+  });
+  afterEach(() => {
+    for (const [k, v] of [
+      ["NEXT_PUBLIC_SUPABASE_URL", keep.url],
+      ["NEXT_PUBLIC_SUPABASE_ANON_KEY", keep.key],
+    ] as const) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  });
+
+  it("requires a real sign-in: no cookies -> 401 (no silent demo Creator)", async () => {
+    await expect(getSession(new Request("http://x"))).rejects.toMatchObject({ status: 401 });
+  });
+
+  it("refuses to build a database client without the user's token", async () => {
+    const { getRepo } = await import("@/server/repo");
+    const fake = { user: { id: "u", name: "n", team: "t", role: "Creator" as Role }, workspaceId: "w" };
+    expect(() => getRepo(fake)).toThrow(/sign in/i);
+  });
+
+  it("demo sign-in needs DEMO_PASSWORD on the server", async () => {
+    const { signInDemo } = await import("@/server/auth");
+    delete process.env.DEMO_PASSWORD;
+    await expect(signInDemo("Reviewer")).rejects.toMatchObject({ status: 503 });
+  });
+});

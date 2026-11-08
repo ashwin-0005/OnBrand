@@ -1,25 +1,26 @@
 import "server-only";
 import type { Comment, Decision, HistoryEvent, InsightRecord, Session } from "@/types";
 import { getRepo } from "./repo";
+import type { ServerSession } from "./mode";
 import { HttpError } from "./http";
 import { requireRole } from "./auth";
 import { displayName } from "./memoryRepo";
 import type { z } from "zod";
 import type { DecisionBody } from "./schemas";
 
-async function ownSubmission(session: Session, id: string) {
-  const sub = await getRepo().getSubmission(session.workspaceId, id);
+async function ownSubmission(session: ServerSession, id: string) {
+  const sub = await getRepo(session).getSubmission(session.workspaceId, id);
   if (!sub) throw new HttpError(404, "This review was not found. Run the check again.");
   return sub;
 }
 
 /** Accept / edit / dispute. Suggestions only: nothing is applied or published by the server. */
 export async function decide(
-  session: Session,
+  session: ServerSession,
   submissionId: string,
   body: z.infer<typeof DecisionBody>,
 ): Promise<Decision> {
-  const repo = getRepo();
+  const repo = getRepo(session);
   const sub = await ownSubmission(session, submissionId);
   if (sub.status === "approved")
     throw new HttpError(409, "This draft is already approved. Run a new check to change it.");
@@ -44,9 +45,9 @@ export async function decide(
   return decision;
 }
 
-export async function approve(session: Session, submissionId: string) {
+export async function approve(session: ServerSession, submissionId: string) {
   requireRole(session, ["Reviewer", "Admin"], "approve");
-  const repo = getRepo();
+  const repo = getRepo(session);
   const sub = await ownSubmission(session, submissionId);
   if (sub.status === "approved") return { approved: true as const, at: sub.approvedAt!, by: sub.approvedBy! };
   const done = await repo.approve(sub.id, session.user.id);
@@ -58,22 +59,22 @@ export async function approve(session: Session, submissionId: string) {
   };
 }
 
-export async function comment(session: Session, submissionId: string, text: string): Promise<Comment> {
-  const repo = getRepo();
+export async function comment(session: ServerSession, submissionId: string, text: string): Promise<Comment> {
+  const repo = getRepo(session);
   const sub = await ownSubmission(session, submissionId);
   const c = await repo.addComment(sub.id, session.user.id, text);
   await repo.addRevision({ submissionId: sub.id, actorId: session.user.id, action: "commented", detail: text });
   return c;
 }
 
-export async function comments(session: Session, submissionId: string): Promise<Comment[]> {
+export async function comments(session: ServerSession, submissionId: string): Promise<Comment[]> {
   const sub = await ownSubmission(session, submissionId);
-  return getRepo().getComments(sub.id);
+  return getRepo(session).getComments(sub.id);
 }
 
 /** Revisions turned into the History tab's plain-language events. */
-export async function history(session: Session, submissionId: string): Promise<HistoryEvent[]> {
-  const repo = getRepo();
+export async function history(session: ServerSession, submissionId: string): Promise<HistoryEvent[]> {
+  const repo = getRepo(session);
   const sub = await ownSubmission(session, submissionId);
   const [revs, findings, people] = await Promise.all([
     repo.getRevisions(sub.id),
@@ -100,10 +101,10 @@ export async function history(session: Session, submissionId: string): Promise<H
 
 /** Insights with optional server-side filters. Also returns the older summary shapes. */
 export async function insights(
-  session: Session,
+  session: ServerSession,
   f: { rule?: string; team?: string; creator?: string; from?: string; to?: string },
 ) {
-  const { stats, records } = await getRepo().getInsights(session.workspaceId);
+  const { stats, records } = await getRepo(session).getInsights(session.workspaceId);
   const rows = records.filter(
     (r: InsightRecord) =>
       (!f.rule || r.ruleId === f.rule) &&
@@ -141,9 +142,9 @@ export async function insights(
  * Admin-only role change. Refuses to leave a role with nobody in it
  * (there must always be an Admin; demo sign-in also needs one person per role).
  */
-export async function changeRole(session: Session, userId: string, role: Session["user"]["role"]) {
+export async function changeRole(session: ServerSession, userId: string, role: Session["user"]["role"]) {
   requireRole(session, ["Admin"], "change roles");
-  const repo = getRepo();
+  const repo = getRepo(session);
   const people = await repo.listUsers(session.workspaceId);
   const target = people.find((p) => p.id === userId);
   if (!target) throw new HttpError(404, "User not found.");

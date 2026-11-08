@@ -16,11 +16,14 @@ import type {
   User,
 } from "@/types";
 import { createMemoryRepo } from "./memoryRepo";
+import { createSupabaseRepo } from "./supabaseRepo";
+import { supabaseConfigured, type ServerSession } from "./mode";
+import { HttpError } from "./http";
 
 /**
  * All data access goes through this interface.
- * Phase B1: in-memory store (no accounts needed). Phase B3 adds a Supabase implementation
- * that uses the signed-in user's client so Postgres row-level security applies.
+ * Two implementations: in-memory demo store (no accounts needed) and Supabase (acts as the
+ * signed-in user, so Postgres row-level security applies). Chosen by supabaseConfigured().
  */
 export interface Repo {
   // Workspace data
@@ -57,8 +60,15 @@ export interface Repo {
 
 const g = globalThis as unknown as { __onbrandRepo?: Repo };
 
-/** Single store per server process (survives dev hot-reloads). */
-export function getRepo(): Repo {
+/** The in-memory demo store: one per server process (survives dev hot-reloads). */
+export function memoryRepo(): Repo {
   g.__onbrandRepo ??= createMemoryRepo();
   return g.__onbrandRepo;
+}
+
+/** The repo for this request's user. Supabase mode needs the user's access token (RLS acts as them). */
+export function getRepo(session: ServerSession): Repo {
+  if (!supabaseConfigured()) return memoryRepo();
+  if (!session.token) throw new HttpError(401, "Please sign in.");
+  return createSupabaseRepo(session.token);
 }

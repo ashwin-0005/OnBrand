@@ -1,10 +1,11 @@
 # OnBrand API contract
 
-Status: phase **B2** (server routes, in-memory demo store, free AI: Gemini free tier / Ollama / mock). Everything is free to run.
+Status: phase **B3** (server routes; in-memory demo store OR Supabase free tier with RLS + Auth; free AI: Gemini / Ollama / mock). Everything is free to run.
 The browser only uses `src/lib/api.ts`, which only calls our own `/api/*` routes.
 All errors come back as `{ "error": "plain-language message" }` with an HTTP status.
 
-## Session (demo sign-in until Supabase Auth in B3)
+## Session (Supabase Auth when configured; otherwise a demo role cookie)
+In Supabase mode there is no anonymous user: signed-out requests get **401** and the browser client redirects to /login.
 | `api.ts` | Route | In | Out |
 |---|---|---|---|
 | `getSession()` | `GET /api/session` | – | `Session { user: User, workspaceId }` (no cookie = demo Creator) |
@@ -44,6 +45,5 @@ Submission, Revision, HistoryEvent, Comment, User, Session, InsightStats, Insigh
 `phrase` (exact text from the draft) and `source` (`deterministic` | `ai`).
 
 ## Not yet (later phases)
-- B3: Supabase schema + RLS + Auth (replaces the in-memory store and demo cookie).
 - B4: insights/admin from the database; Vercel Hobby deploy notes.
 - Uploads/import are UI-only.
