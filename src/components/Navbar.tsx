@@ -74,7 +74,7 @@ export function Navbar() {
             />
             Reduce motion
           </label>
-          <AiBadge dark={dark} />
+          {!dark && <AiBadge />}
           <Link
             href="/login"
             className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full px-3 text-xs font-semibold ${

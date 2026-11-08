@@ -7,8 +7,6 @@ export function Footer() {
         <p className="flex items-center gap-2 font-serif font-bold">
           <ShieldMark className="h-5 w-5" /> OnBrand
         </p>
-        <p className="text-muted">AI use: Google Gemini (free tier) or a local model, disclosed in product.</p>
-        <p className="text-muted">Demo with synthetic brand data (Zippy Apps).</p>
       </div>
     </footer>
   );
